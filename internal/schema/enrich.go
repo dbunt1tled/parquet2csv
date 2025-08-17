@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"csv2parquet/internal/helper"
+	"github.com/dbunt1tled/parquet2csv/internal/helper"
 )
 
 type EnrichData struct {

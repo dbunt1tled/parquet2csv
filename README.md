@@ -1,6 +1,12 @@
 # csv2parquet
 
-[![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/golang.org/x/example) ![example workflow](https://github.com/dbunt1tled/parquet2csv/actions/workflows/go.yml/badge.svg)
+[![Go Version](https://img.shields.io/badge/go-1.21+-blue?logo=go)](https://golang.org/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dbunt1tled/parquet2csv.svg)](https://pkg.go.dev/github.com/dbunt1tled/parquet2csv)
+[![Release](https://img.shields.io/github/v/release/dbunt1tled/parquet2csv)](https://github.com/dbunt1tled/github-unfollow/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dbunt1tled/parquet2csv)](https://goreportcard.com/report/github.com/dbunt1tled/parquet2csv)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![Go Reference](https://pkg.go.dev/badge/golang.org/x/example.svg)](https://pkg.go.dev/golang.org/x/example) ![example workflow](https://github.com/dbunt1tled/parquet2csv/actions/workflows/build.yml/badge.svg)
 
 A fast, reliable CLI tool for converting CSV files to Apache Parquet format. Built in Go, it’s designed for data workflows that need efficient, schema-aware columnar storage.
 

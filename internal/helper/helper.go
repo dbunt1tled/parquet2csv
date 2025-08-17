@@ -1,8 +1,8 @@
 package helper
 
 import (
-	"csv2parquet/internal/file"
 	"fmt"
+	"github.com/dbunt1tled/parquet2csv/internal/file"
 	"log"
 	"os"
 	"regexp"

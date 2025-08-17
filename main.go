@@ -1,14 +1,15 @@
 package main
 
 import (
-	"csv2parquet/internal/file"
-	"csv2parquet/internal/helper"
-	"csv2parquet/internal/schema"
 	"flag"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/dbunt1tled/parquet2csv/internal/file"
+	"github.com/dbunt1tled/parquet2csv/internal/helper"
+	"github.com/dbunt1tled/parquet2csv/internal/schema"
 
 	"github.com/xitongsys/parquet-go-source/local"
 	"github.com/xitongsys/parquet-go/parquet"
