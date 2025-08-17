@@ -12,10 +12,14 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
+      - windows
       - darwin
     goarch:
       - amd64
       - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
     ldflags:
       - '-s -w'
       - '-X main.version={{ .Version }}'
@@ -31,6 +35,9 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
 
 checksum:
   name_template: 'checksum.txt'
