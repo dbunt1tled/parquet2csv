@@ -2,6 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue?logo=go)](https://golang.org/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/dbunt1tled/parquet2csv.svg)](https://pkg.go.dev/github.com/dbunt1tled/parquet2csv)
+[![Build Status](https://github.com/dbunt1tled/parquet2csv/workflows/build/badge.svg)](https://github.com/dbunt1tled/parquet2csv/actions)
 [![Release](https://img.shields.io/github/v/release/dbunt1tled/parquet2csv)](https://github.com/dbunt1tled/github-unfollow/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dbunt1tled/parquet2csv)](https://goreportcard.com/report/github.com/dbunt1tled/parquet2csv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
