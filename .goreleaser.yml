@@ -6,7 +6,7 @@ before:
     - go generate ./...
 
 builds:
-  - main: ./cmd/main.go
+  - main: ./main.go
     binary: 'csv2parquet'
     env:
       - CGO_ENABLED=0
