@@ -2,9 +2,8 @@ package helper
 
 import (
 	"fmt"
-	"github.com/dbunt1tled/parquet2csv/internal/file"
-	"log"
 	"os"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -59,7 +58,7 @@ func RuntimeStatistics(startTime time.Time, inputFile string) string {
 	funcObj := runtime.FuncForPC(pc)
 	runtimeFunc := regexp.MustCompile(`^.*\.(.*)$`)
 	name := runtimeFunc.ReplaceAllString(funcObj.Name(), "$1")
-	fInfo, _ := file.Info(inputFile)
+	fInfo, _ := os.Stat(inputFile)
 	return fmt.Sprintf(
 		"%s (%s): %s Processed %s (%s)",
 		inputFile,
@@ -80,30 +79,6 @@ func MemoryUsage() string {
 	)
 }
 
-func AppHelp(help bool) {
-	if help {
-		log.Printf("%s", `
-https://github.com/dbunt1tled/parquet2csv
-Usage of ./csv2parquet:
-  --delimiter string
-        Delimiter for csv file (default ",")
-  --flush int
-        number of rows to flush (default 10000)
-  --help
-        Show this help message
-  --schema string
-        schema of csv file (default "default")
-  --compression int
-        Type of compression (default 0)
-  --verbose
-        Statistic info in the end
-  <input file path>
-  <output file path>
-`)
-		os.Exit(0)
-	}
-}
-
 func GetFileSize(size int64) string {
 	sizeKb := 1024.0
 	sizeMb := sizeKb * sizeKb
@@ -116,5 +91,67 @@ func GetFileSize(size int64) string {
 		return fmt.Sprintf("%.2f Mb", float64(size)/sizeMb)
 	default:
 		return fmt.Sprintf("%.2f Gb", float64(size)/sizeGb)
+	}
+}
+
+func StructToMap(obj interface{}) (map[string]interface{}, error) {
+	val := reflect.ValueOf(obj)
+	typ := reflect.TypeOf(obj)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+		typ = typ.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected struct, got %v", val.Kind())
+	}
+
+	result := make(map[string]interface{})
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		fieldValue := val.Field(i)
+
+		if !fieldValue.CanInterface() {
+			continue
+		}
+
+		result[field.Name] = fieldValue.Interface()
+	}
+
+	return result, nil
+}
+
+func AnyToString(a any) string {
+	switch value := a.(type) {
+	case nil:
+		return ""
+	case string:
+		return value
+	case int:
+		return strconv.Itoa(value)
+	case int8, int16, int32, int64:
+		return strconv.FormatInt(reflect.ValueOf(value).Int(), 10)
+	case uint, uint8, uint16, uint32, uint64:
+		return strconv.FormatUint(reflect.ValueOf(value).Uint(), 10)
+	case []byte:
+		return string(value)
+	case float32:
+		return strconv.FormatFloat(float64(value), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(value)
+	case time.Time:
+		return value.Format(time.RFC3339)
+	default:
+		if reflect.TypeOf(value).Kind() == reflect.Ptr {
+			elem := reflect.ValueOf(value).Elem()
+			if !elem.IsValid() {
+				return ""
+			}
+			return AnyToString(elem.Interface())
+		}
+		return fmt.Sprintf("%v", value)
 	}
 }

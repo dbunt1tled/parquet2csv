@@ -1,13 +1,12 @@
 package file
 
 import (
-	"encoding/csv"
 	"errors"
-	"io"
-	"log"
 	"os"
 	"syscall"
 )
+
+const FlushCount = 10000
 
 func IsExist(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -17,16 +16,6 @@ func IsExist(path string) (bool, error) {
 		panic(err)
 	}
 	return true, nil
-}
-
-func Info(path string) (os.FileInfo, error) {
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	} else if err != nil {
-		panic(err)
-	}
-	return info, nil
 }
 
 func IsWritable(path string) (bool, error) {
@@ -54,36 +43,10 @@ func IsWritable(path string) (bool, error) {
 	return true, nil
 }
 
-type ReadCSVChannel chan []string
-
-func ReadCSV(fName string, delimiter rune, skipHeader bool) (ch ReadCSVChannel) { //nolint:nonamedreturns // return channel
-	ch = make(chan []string)
-	go func() {
-		cFile, _ := os.Open(fName)
-		defer func(cFile *os.File) {
-			err := cFile.Close()
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-		}(cFile)
-		r := csv.NewReader(cFile)
-		r.Comma = delimiter
-		if skipHeader {
-			if _, err := r.Read(); err != nil {
-				log.Fatal(err)
-			}
-		}
-		defer close(ch)
-		for {
-			rec, err := r.Read()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				log.Fatal(err)
-			}
-			ch <- rec
-		}
-	}()
-	return ch
+func Create(name string) (*os.File, error) {
+	_, err := os.Stat(name)
+	if err == nil {
+		return nil, os.ErrExist
+	}
+	return os.Create(name)
 }
