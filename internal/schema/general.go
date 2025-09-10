@@ -8,16 +8,6 @@ import (
 
 type Processor func(record []string, sc interface{}, header []string) interface{}
 
-func MatchSchema(sch string, header []string) (interface{}, Processor) {
-	switch sch {
-	case "default":
-		return ProcessDefault(header)
-	case "enrich":
-		return new(EnrichData), ProcessEnrichData
-	}
-	panic("Schema not found")
-}
-
 func ProcessDefault(header []string) (interface{}, Processor) {
 	sc := MakeDefaultSchema(header)
 	return sc, func(record []string, sc interface{}, header []string) interface{} {
