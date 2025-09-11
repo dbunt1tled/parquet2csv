@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dbunt1tled/parquet2csv/internal/file"
@@ -90,6 +91,14 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		i := 0
 		bp := file.NewBatchProcessor(input, file.FlushCount, []rune(delimiter)[0], false)
 		bCh, eCh := bp.Reader()
+
+		dataPool := &sync.Pool{
+			New: func() interface{} {
+				data := make(map[string]interface{})
+				return &data
+			},
+		}
+
 		for rows := range bCh {
 			select {
 			case err = <-eCh:
@@ -109,7 +118,7 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 						continue
 					}
 
-					eData := processor(rec, structType, header)
+					eData := processor(rec, structType, header, dataPool)
 					if err = pw.Write(eData); err != nil {
 						return errors.Wrap(err, "write error")
 					}

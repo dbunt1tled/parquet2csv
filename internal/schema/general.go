@@ -1,17 +1,35 @@
 package schema
 
 import (
+	"sync"
+
 	"github.com/bytedance/sonic"
 	"github.com/iancoleman/strcase"
 	dynamicstruct "github.com/ompluscator/dynamic-struct"
 )
 
-type Processor func(record []string, sc interface{}, header []string) interface{}
+type Processor func(record []string, sc interface{}, header []string, dataPool *sync.Pool) interface{}
 
 func ProcessDefault(header []string) (interface{}, Processor) {
 	sc := MakeDefaultSchema(header)
-	return sc, func(record []string, sc interface{}, header []string) interface{} {
-		data := make(map[string]interface{})
+	return sc, func(record []string, sc interface{}, header []string, dataPool *sync.Pool) interface{} {
+		var (
+			dataPtr *map[string]interface{}
+			data    map[string]interface{}
+			ok      bool
+		)
+
+		if dataPool != nil {
+			dataPtr, ok = dataPool.Get().(*map[string]interface{})
+			if !ok || dataPtr == nil {
+				panic("unexpected data type")
+			}
+			clear(*dataPtr)
+			data = *dataPtr
+		} else {
+			data = make(map[string]interface{})
+		}
+
 		if len(header) != len(record) {
 			panic("header and record length not equal")
 		}
@@ -23,6 +41,9 @@ func ProcessDefault(header []string) (interface{}, Processor) {
 		err := sonic.ConfigFastest.Unmarshal(jsonString, &sc)
 		if err != nil {
 			panic(err)
+		}
+		if dataPool != nil {
+			dataPool.Put(&data)
 		}
 		return sc
 	}

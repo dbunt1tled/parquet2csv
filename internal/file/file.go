@@ -27,11 +27,10 @@ func IsWritable(path string) (bool, error) {
 		return false, errors.New("Path isn't a directory. " + path)
 	}
 
-	if info.Mode().Perm()&(1<<(uint(7))) == 0 { // проверка write-бита
+	if info.Mode().Perm()&(1<<(uint(7))) == 0 { //nolint:mnd // check write bit
 		return false, errors.New("Write permission bit is not set for user. " + path)
 	}
 
-	// Проверка прав владельца делается отдельно в OS-специфичных файлах
 	return isWritableByOwner(path)
 }
 

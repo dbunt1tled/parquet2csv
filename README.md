@@ -33,47 +33,12 @@ A fast, reliable CLI tool for **bidirectional conversion** between CSV and Apach
 ```bash
 git clone https://github.com/dbunt1tled/parquet2csv.git
 cd parquet2csv
-go build -o converter main.go
+go build -o csv2parquet main.go
 ```
 
 ### Using Go Install
 ```bash
 go install github.com/dbunt1tled/parquet2csv@latest
-```
-
-## Usage
-
-The tool provides two main commands under the `converter` CLI:
-
-### Convert CSV to Parquet
-```bash
-# Basic usage
-./converter parquet input.csv output.parquet
-
-# Auto-generate output filename
-./converter parquet input.csv
-
-# With custom options
-./converter parquet input.csv output.parquet \
-  --delimiter ";" \
-  --compression 1 \
-  --flush 5000 \
-  --verbose
-```
-
-### Convert Parquet to CSV
-```bash
-# Basic usage
-./converter csv input.parquet output.csv
-
-# Auto-generate output filename
-./converter csv input.parquet
-
-# With custom options
-./converter csv input.parquet output.csv \
-  --delimiter "|" \
-  --flush 2000 \
-  --verbose
 ```
 
 ## Command Reference
@@ -97,9 +62,9 @@ converter                    # Root command
 
 ### Help Commands
 ```bash
-./converter --help                    # General help
-./converter parquet --help           # CSV to Parquet help
-./converter csv --help               # Parquet to CSV help
+./csv2parquet --help                   # General help
+./csv2parquet parquet --help           # CSV to Parquet help
+./csv2parquet csv --help               # Parquet to CSV help
 ```
 
 ## Examples
@@ -107,25 +72,25 @@ converter                    # Root command
 ### Basic Conversion Examples
 ```bash
 # CSV to Parquet with default settings
-./converter parquet data.csv
+./csv2parquet parquet data.csv
 
 # Parquet to CSV with custom delimiter
-./converter csv data.parquet --delimiter ";"
+./csv2parquet csv data.parquet --delimiter ";"
 
 # CSV to Parquet with compression and verbose output
-./converter parquet large_dataset.csv --compression 1 --verbose
+./csv2parquet parquet large_dataset.csv --compression 1 --verbose
 ```
 
 ### Advanced Usage
 ```bash
 # Process large files with custom flush interval
-./converter parquet big_file.csv big_file.parquet \
+./csv2parquet parquet big_file.csv big_file.parquet \
   --flush 50000 \
   --compression 2 \
   --verbose
 
 # Convert with pipe delimiter and detailed stats
-./converter csv analytics.parquet analytics.csv \
+./csv2parquet csv analytics.parquet analytics.csv \
   --delimiter "|" \
   --flush 1000 \
   --verbose
@@ -178,7 +143,7 @@ go test -bench . ./...       # Run benchmarks
 
 ### Building
 ```bash
-go build -o converter main.go    # Build binary
+go build -o csv2parquet main.go   # Build binary
 make build                        # Using Makefile (if available)
 ```
 
