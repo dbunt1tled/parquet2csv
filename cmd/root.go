@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{ //nolint:gochecknoglobals // need for init commands
-	Use:   "converter",
+	Use:   "csv2parquet",
 	Short: "Converter CLI",
-	Long:  "Converter parquet to csv",
+	Long:  "Converter parquet ⇄ csv",
 }
 
 func Execute() {

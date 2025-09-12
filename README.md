@@ -45,7 +45,7 @@ go install github.com/dbunt1tled/parquet2csv@latest
 
 ### Global Commands
 ```
-converter                    # Root command
+csv2parquet                     # Root command
   ├── parquet <input> <output>  # Convert CSV to Parquet
   └── csv <input> <output>      # Convert Parquet to CSV
 ```

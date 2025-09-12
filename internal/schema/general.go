@@ -24,8 +24,8 @@ func ProcessDefault(header []string) (interface{}, Processor) {
 			if !ok || dataPtr == nil {
 				panic("unexpected data type")
 			}
-			clear(*dataPtr)
 			data = *dataPtr
+			clear(data)
 		} else {
 			data = make(map[string]interface{})
 		}
@@ -37,13 +37,13 @@ func ProcessDefault(header []string) (interface{}, Processor) {
 			data[header[i]] = record[i]
 		}
 		jsonString, _ := sonic.ConfigFastest.Marshal(data)
-
 		err := sonic.ConfigFastest.Unmarshal(jsonString, &sc)
 		if err != nil {
 			panic(err)
 		}
 		if dataPool != nil {
-			dataPool.Put(&data)
+			*dataPtr = data
+			dataPool.Put(dataPtr)
 		}
 		return sc
 	}

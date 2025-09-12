@@ -115,7 +115,8 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if !ok || recordPtr == nil {
 			return errors.New("unexpected record type")
 		}
-		record = (*recordPtr)[:0]
+		record = *recordPtr
+		record = record[0:0]
 		for _, el := range header {
 			if el.NumChildren != nil {
 				continue
@@ -128,7 +129,8 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return errors.Wrap(err, "error write header")
 		}
-		stringPool.Put(&record)
+		*recordPtr = record
+		stringPool.Put(recordPtr)
 
 		readRows := 0
 		for readRows < num {

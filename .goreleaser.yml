@@ -10,6 +10,7 @@ builds:
     binary: 'csv2parquet'
     env:
       - CGO_ENABLED=0
+      - GOGC=150
     goos:
       - linux
       - windows
