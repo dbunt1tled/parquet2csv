@@ -102,7 +102,7 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		for rows := range bCh {
 			select {
 			case err = <-eCh:
-				return errors.Wrap(err, "write error")
+				return errors.Wrap(err, "read error")
 			default:
 				for _, rec := range rows.Rows {
 					if i == 0 {
@@ -132,6 +132,14 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 					i++
 				}
 			}
+		}
+
+		select {
+		case err = <-eCh:
+			if err != nil {
+				return errors.Wrap(err, "read error")
+			}
+		default:
 		}
 
 		if err = pw.WriteStop(); err != nil {

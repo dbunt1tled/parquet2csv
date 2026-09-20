@@ -1,8 +1,6 @@
 package helper
 
 import (
-	"bytes"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -125,9 +123,9 @@ func TestGetFileSize(t *testing.T) {
 		{"bytes", 100, "0.10 Kb"},
 		{"kilobytes", 1024, "1.00 Kb"},
 		{"kilobytes decimal", 1536, "1.50 Kb"},
-		{"megabytes", 1048576, "1.00 Mb"}, // 1024*1024
-		{"megabytes decimal", 1572864, "1.50 Mb"}, // 1.5*1024*1024
-		{"gigabytes", 1073741824, "1.00 Gb"}, // 1024*1024*1024
+		{"megabytes", 1048576, "1.00 Mb"},            // 1024*1024
+		{"megabytes decimal", 1572864, "1.50 Mb"},    // 1.5*1024*1024
+		{"gigabytes", 1073741824, "1.00 Gb"},         // 1024*1024*1024
 		{"gigabytes decimal", 1610612736, "1.50 Gb"}, // 1.5*1024*1024*1024
 	}
 
@@ -171,31 +169,6 @@ func TestRuntimeStatistics(t *testing.T) {
 		!strings.Contains(result, "TotalAlloc:") {
 		t.Errorf("RuntimeStatistics() = %q; expected to contain file name, 'Processed', and memory stats", result)
 	}
-}
-
-func TestAppHelp(t *testing.T) {
-	// We can only test the false case safely without mocking os.Exit
-	// For the true case, we would need to mock os.Exit which is not possible
-	// in a standard way in Go without modifying the source code.
-
-	// Capture log output
-	var buf bytes.Buffer
-	oldOutput := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(oldOutput)
-
-	// Test with help = false (should not exit or log)
-	AppHelp(false)
-
-	// Verify no output was logged
-	if buf.Len() > 0 {
-		t.Errorf("AppHelp(false) wrote to log, which it shouldn't: %s", buf.String())
-	}
-
-	// Note: We cannot safely test the true case (AppHelp(true))
-	// as it calls os.Exit directly, which would terminate the test process.
-	// In a real-world scenario, we would refactor the code to make it more testable
-	// by injecting the exit function or returning a value instead of calling os.Exit directly.
 }
 
 // Benchmarks

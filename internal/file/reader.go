@@ -16,7 +16,6 @@ type BatchProcessor struct {
 	delimiter  rune
 	batchChan  chan Batch
 	resultChan chan []Row
-	errorChan  chan error
 }
 
 type Row struct {
@@ -48,17 +47,17 @@ func (bp *BatchProcessor) Reader() (batchChan chan Batch, errorChan chan error) 
 	batchChan = make(chan Batch, 2)
 	errorChan = make(chan error, 2)
 	go func() {
+		defer close(batchChan)
+
 		file, err := os.Open(bp.inputFile)
 		if err != nil {
 			errorChan <- errors.Wrap(err, "error opening file "+bp.inputFile)
-			close(errorChan)
 			return
 		}
 		defer func(file *os.File) {
 			err := file.Close()
 			if err != nil {
 				errorChan <- errors.Wrap(err, "error closing file "+bp.inputFile)
-				close(errorChan)
 				return
 			}
 		}(file)
@@ -68,11 +67,9 @@ func (bp *BatchProcessor) Reader() (batchChan chan Batch, errorChan chan error) 
 		if bp.skipHeader {
 			if _, err := reader.Read(); err != nil {
 				errorChan <- errors.Wrap(err, "error reading header")
-				close(errorChan)
 				return
 			}
 		}
-		defer close(batchChan)
 		batchID := 0
 		for {
 			batch := make([][]string, 0, bp.batchSize)
@@ -83,8 +80,7 @@ func (bp *BatchProcessor) Reader() (batchChan chan Batch, errorChan chan error) 
 					if err == io.EOF {
 						break
 					}
-					bp.errorChan <- errors.Wrap(err, "error reading row "+strconv.Itoa(startRow+i))
-					close(batchChan)
+					errorChan <- errors.Wrap(err, "error reading row "+strconv.Itoa(startRow+i))
 					return
 				}
 				batch = append(batch, record)

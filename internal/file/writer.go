@@ -45,5 +45,5 @@ func (w *CSVWriter) Close() error {
 	if err := w.file.Close(); err != nil {
 		return err
 	}
-	return w.file.Close()
+	return nil
 }

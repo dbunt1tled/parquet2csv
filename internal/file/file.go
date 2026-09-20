@@ -12,7 +12,7 @@ func IsExist(path string) (bool, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return false, err
 	} else if err != nil {
-		panic(err)
+		return false, err
 	}
 	return true, nil
 }
