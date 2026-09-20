@@ -54,7 +54,7 @@ csv2parquet                     # Root command
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--compression` | `-c` | int | 0 | Compression type (0=UNCOMPRESSED, 1=SNAPPY, 2=GZIP, 3=LZO) |
+| `--compression` | `-c` | int | 0 | Compression type (0=UNCOMPRESSED, 1=SNAPPY, 2=GZIP, 5=LZ4, 6=ZSTD) |
 | `--delimiter` | `-d` | string | "," | Field delimiter for CSV files |
 | `--flush` | `-f` | int | 10000 | Number of rows to process before flushing to disk |
 | `--verbose` | `-v` | bool | false | Show detailed statistics and performance metrics |
@@ -99,7 +99,7 @@ csv2parquet                     # Root command
 ## Performance Features
 
 - **Batch Processing**: Configurable row batch sizes for optimal memory usage
-- **Compression**: Support for multiple compression algorithms (SNAPPY, GZIP, LZO)
+- **Compression**: Support for multiple compression algorithms (SNAPPY, GZIP, LZ4, ZSTD)
 - **Memory Management**: Efficient memory pooling and garbage collection
 - **Progress Tracking**: Runtime statistics including processing time and memory usage
 - **Schema Optimization**: Automatic type inference and schema generation

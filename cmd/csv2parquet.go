@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -58,6 +59,18 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return errors.Wrap(err, "error read compression")
 		}
+		// parquet-go silently compresses to nothing for a codec it has no compressor for,
+		// which writes a file with a schema and no rows, so only registered codecs are allowed.
+		supported := []int{
+			int(parquet.CompressionCodec_UNCOMPRESSED),
+			int(parquet.CompressionCodec_SNAPPY),
+			int(parquet.CompressionCodec_GZIP),
+			int(parquet.CompressionCodec_LZ4),
+			int(parquet.CompressionCodec_ZSTD),
+		}
+		if !slices.Contains(supported, compression) {
+			return fmt.Errorf("unsupported compression %d, want one of %v", compression, supported)
+		}
 		flush, err = cmd.Flags().GetInt("flush")
 		if err != nil {
 			return errors.Wrap(err, "error read flush")
@@ -112,7 +125,10 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 			for _, rec := range rows.Rows {
 				if i == 0 {
 					header = rec
-					structType, processor = schema.ProcessDefault(header)
+					structType, processor, err = schema.ProcessDefault(header)
+					if err != nil {
+						return errors.Wrap(err, "build schema")
+					}
 					pw, err = writer.NewParquetWriter(fw, structType, 2) //nolint:mnd // maybe the number of threads
 					if err != nil {
 						return errors.Wrap(err, "can't create parquet writer")

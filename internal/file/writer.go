@@ -19,6 +19,9 @@ func NewCSVWriter(path string, delimiter string, flush int) (*CSVWriter, error) 
 	if len(comma) != 1 {
 		return nil, errors.New("delimiter must be a single character")
 	}
+	if flush < 1 {
+		return nil, errors.New("flush must be at least 1")
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
@@ -47,11 +50,6 @@ func (w *CSVWriter) WriteS(row []string) error {
 
 func (w *CSVWriter) Close() error {
 	w.writer.Flush()
-	if err := w.writer.Error(); err != nil {
-		return err
-	}
-	if err := w.file.Close(); err != nil {
-		return err
-	}
-	return nil
+	// The flush error must not skip the close, or a failed flush leaks the descriptor.
+	return errors.Join(w.writer.Error(), w.file.Close())
 }
