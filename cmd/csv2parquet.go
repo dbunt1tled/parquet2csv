@@ -62,6 +62,9 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return errors.Wrap(err, "error read flush")
 		}
+		if flush < 1 {
+			return fmt.Errorf("flush must be at least 1, got %d", flush)
+		}
 		delimiter, err = cmd.Flags().GetString("delimiter")
 		if err != nil {
 			return errors.Wrap(err, "error read delimiter")
