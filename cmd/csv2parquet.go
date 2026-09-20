@@ -69,6 +69,9 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return errors.Wrap(err, "error read delimiter")
 		}
+		if len([]rune(delimiter)) != 1 {
+			return fmt.Errorf("delimiter must be a single character, got %q", delimiter)
+		}
 		verbose, err = cmd.Flags().GetBool("verbose")
 		if err != nil {
 			return errors.Wrap(err, "error read verbose")

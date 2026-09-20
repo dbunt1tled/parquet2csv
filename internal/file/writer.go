@@ -2,6 +2,7 @@ package file
 
 import (
 	"encoding/csv"
+	"errors"
 	"os"
 )
 
@@ -14,12 +15,16 @@ type CSVWriter struct {
 }
 
 func NewCSVWriter(path string, delimiter string, flush int) (*CSVWriter, error) {
+	comma := []rune(delimiter)
+	if len(comma) != 1 {
+		return nil, errors.New("delimiter must be a single character")
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
 	}
 	w := csv.NewWriter(f)
-	w.Comma = rune(delimiter[0])
+	w.Comma = comma[0]
 	return &CSVWriter{
 		file:      f,
 		writer:    w,
