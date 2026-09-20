@@ -142,6 +142,10 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		default:
 		}
 
+		if pw == nil {
+			return errors.New("input file " + input + " is empty: no header row")
+		}
+
 		if err = pw.WriteStop(); err != nil {
 			return errors.Wrap(err, "write stop error")
 		}
