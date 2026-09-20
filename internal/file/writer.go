@@ -42,6 +42,9 @@ func (w *CSVWriter) WriteS(row []string) error {
 
 func (w *CSVWriter) Close() error {
 	w.writer.Flush()
+	if err := w.writer.Error(); err != nil {
+		return err
+	}
 	if err := w.file.Close(); err != nil {
 		return err
 	}

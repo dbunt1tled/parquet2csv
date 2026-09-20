@@ -82,15 +82,8 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return err
 		}
-		defer func(fw source.ParquetFile) {
-			err = fw.Close()
-			if err != nil {
-				err = errors.Wrap(err, "close writer error")
-			}
-		}(fw)
-		if err != nil {
-			return err
-		}
+		// Best effort for the error paths; the success path closes and checks the error below.
+		defer fw.Close()
 		i := 0
 		bp := file.NewBatchProcessor(input, file.FlushCount, []rune(delimiter)[0], false)
 		bCh, eCh := bp.Reader()
@@ -151,6 +144,10 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 
 		if err = pw.WriteStop(); err != nil {
 			return errors.Wrap(err, "write stop error")
+		}
+
+		if err = fw.Close(); err != nil {
+			return errors.Wrap(err, "close writer error")
 		}
 		if verbose {
 			fmt.Printf("%s\n", helper.RuntimeStatistics(startTime, input)) //nolint:forbidigo  // verbose output

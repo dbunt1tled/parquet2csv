@@ -98,15 +98,8 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err != nil {
 			return errors.Wrap(err, "error open file writer")
 		}
-		defer func(fw *file.CSVWriter) {
-			err = fw.Close()
-			if err != nil {
-				err = errors.Wrap(err, "error close file writer")
-			}
-		}(fw)
-		if err != nil {
-			return err
-		}
+		// Best effort for the error paths; the success path closes and checks the error below.
+		defer fw.Close()
 		header := pr.SchemaHandler.SchemaElements
 		stringPool := sync.Pool{
 			New: func() interface{} {
@@ -165,11 +158,16 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 				if err != nil {
 					return errors.Wrap(err, "error write row")
 				}
-				stringPool.Put(&record)
+				*recordPtr = record
+				stringPool.Put(recordPtr)
 			}
 
 			readRows += rowsToRead
 		}
+		if err = fw.Close(); err != nil {
+			return errors.Wrap(err, "error close file writer")
+		}
+
 		if verbose {
 			fmt.Printf("%s\n", helper.RuntimeStatistics(startTime, input)) //nolint:forbidigo // verbose output
 		}
