@@ -88,14 +88,9 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		}
 		defer pr.ReadStop()
 
+		// A file with no rows still carries a schema, so it goes through the normal path and
+		// comes out as a header with no data rows.
 		num := int(pr.GetNumRows())
-		if num == 0 {
-			_, err = file.Create(output)
-			if err != nil {
-				return errors.Wrap(err, "error create file")
-			}
-			return nil
-		}
 
 		fw, err = file.NewCSVWriter(output, delimiter, flush)
 		if err != nil {
@@ -116,13 +111,15 @@ var parquet2csv = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		}
 		record = *recordPtr
 		record = record[0:0]
-		for _, el := range header {
+		for i, el := range header {
 			if el.NumChildren != nil {
 				continue
 			}
+			// GetName is the Go-side name the row map is keyed by; ExName is the name as the
+			// parquet file stores it, which is what the CSV header must carry.
 			column = el.GetName()
 			columns = append(columns, column)
-			record = append(record, strings.ToLower(column))
+			record = append(record, pr.SchemaHandler.Infos[i].ExName)
 		}
 		err = fw.WriteS(record)
 		if err != nil {

@@ -99,37 +99,42 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		}
 
 		for rows := range bCh {
+			// Abort early when the reader has already failed; a nil here would mean no error,
+			// so it must not be turned into a silent success.
 			select {
 			case err = <-eCh:
-				return errors.Wrap(err, "read error")
-			default:
-				for _, rec := range rows.Rows {
-					if i == 0 {
-						header = rec
-						structType, processor = schema.ProcessDefault(header)
-						pw, err = writer.NewParquetWriter(fw, structType, 2) //nolint:mnd // maybe the number of threads
-						if err != nil {
-							return errors.Wrap(err, "can't create parquet writer")
-						}
-						pw.RowGroupSize = 128 * 1024 * 1024 //nolint:mnd // 128MB
-						pw.CompressionType = parquet.CompressionCodec(int32(compression))
-						i++
-						continue
-					}
-
-					eData := processor(rec, structType, header, dataPool)
-					if err = pw.Write(eData); err != nil {
-						return errors.Wrap(err, "write error")
-					}
-
-					if i == flush {
-						if err = pw.Flush(true); err != nil {
-							return errors.Wrap(err, "write flush error")
-						}
-						i = 0
-					}
-					i++
+				if err != nil {
+					return errors.Wrap(err, "read error")
 				}
+			default:
+			}
+
+			for _, rec := range rows.Rows {
+				if i == 0 {
+					header = rec
+					structType, processor = schema.ProcessDefault(header)
+					pw, err = writer.NewParquetWriter(fw, structType, 2) //nolint:mnd // maybe the number of threads
+					if err != nil {
+						return errors.Wrap(err, "can't create parquet writer")
+					}
+					pw.RowGroupSize = 128 * 1024 * 1024 //nolint:mnd // 128MB
+					pw.CompressionType = parquet.CompressionCodec(int32(compression))
+					i++
+					continue
+				}
+
+				eData := processor(rec, structType, header, dataPool)
+				if err = pw.Write(eData); err != nil {
+					return errors.Wrap(err, "write error")
+				}
+
+				if i == flush {
+					if err = pw.Flush(true); err != nil {
+						return errors.Wrap(err, "write flush error")
+					}
+					i = 0
+				}
+				i++
 			}
 		}
 

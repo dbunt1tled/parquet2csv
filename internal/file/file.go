@@ -29,11 +29,3 @@ func IsWritable(path string) (bool, error) {
 
 	return hasWriteAccess(path)
 }
-
-func Create(name string) (*os.File, error) {
-	_, err := os.Stat(name)
-	if err == nil {
-		return nil, os.ErrExist
-	}
-	return os.Create(name)
-}
