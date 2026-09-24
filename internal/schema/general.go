@@ -2,53 +2,35 @@ package schema
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 
-	"github.com/bytedance/sonic"
 	"github.com/iancoleman/strcase"
 	dynamicstruct "github.com/ompluscator/dynamic-struct"
 )
 
-type Processor func(record []string, sc interface{}, header []string, dataPool *sync.Pool) interface{}
+// Processor fills the schema struct from one CSV record and returns it. The same pointer comes
+// back every time, so the record must be handed to the writer before the next one is processed.
+type Processor func(record []string) interface{}
 
 func ProcessDefault(header []string) (interface{}, Processor, error) {
 	sc, err := MakeDefaultSchema(header)
 	if err != nil {
 		return nil, nil, err
 	}
-	return sc, func(record []string, sc interface{}, header []string, dataPool *sync.Pool) interface{} {
-		var (
-			dataPtr *map[string]interface{}
-			data    map[string]interface{}
-			ok      bool
-		)
 
-		if dataPool != nil {
-			dataPtr, ok = dataPool.Get().(*map[string]interface{})
-			if !ok || dataPtr == nil {
-				panic("unexpected data type")
-			}
-			data = *dataPtr
-			clear(data)
-		} else {
-			data = make(map[string]interface{})
-		}
+	// MakeDefaultSchema adds one field per column in header order, so column i is field i and
+	// the record can be written straight into the struct without a name lookup.
+	fields := reflect.ValueOf(sc).Elem()
+	columns := len(header)
 
-		if len(header) != len(record) {
+	return sc, func(record []string) interface{} {
+		if len(record) != columns {
 			panic("header and record length not equal")
 		}
-		for i := range header {
-			data[header[i]] = record[i]
-		}
-		jsonString, _ := sonic.ConfigFastest.Marshal(data)
-		if fillErr := sonic.ConfigFastest.Unmarshal(jsonString, &sc); fillErr != nil {
-			panic(fillErr)
-		}
-		if dataPool != nil {
-			*dataPtr = data
-			dataPool.Put(dataPtr)
+		for i := range record {
+			fields.Field(i).SetString(record[i])
 		}
 		return sc
 	}, nil

@@ -1,7 +1,9 @@
 package file
 
 import (
+	"bufio"
 	"encoding/csv"
+	stderrors "errors"
 	"io"
 	"os"
 	"strconv"
@@ -9,93 +11,52 @@ import (
 	"github.com/pkg/errors"
 )
 
-type BatchProcessor struct {
-	batchSize  int
-	inputFile  string
-	skipHeader bool
-	delimiter  rune
-	batchChan  chan Batch
-	resultChan chan []Row
+// readBufferSize keeps the scanner off the default 4KB buffer, so a large input costs
+// megabyte-sized reads instead of thousands of small ones.
+const readBufferSize = 1 << 20
+
+// RowReader streams a CSV file one record at a time. The slice returned by Next is only valid
+// until the next call to Next, which is what lets the underlying reader keep reusing it.
+type RowReader struct {
+	file   *os.File
+	reader *csv.Reader
+	row    int
 }
 
-type Row struct {
-	data   []string
-	rowNum int
-}
-
-type Batch struct {
-	Rows  [][]string
-	Start int
-	Id    int
-}
-
-func NewBatchProcessor(
-	inputFile string,
-	batchSize int,
-	delimiter rune,
-	skipHeader bool,
-) *BatchProcessor {
-	return &BatchProcessor{
-		batchSize:  batchSize,
-		inputFile:  inputFile,
-		delimiter:  delimiter,
-		skipHeader: skipHeader,
+func NewRowReader(inputFile string, delimiter rune, skipHeader bool) (*RowReader, error) {
+	f, err := os.Open(inputFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening file "+inputFile)
 	}
+
+	reader := csv.NewReader(bufio.NewReaderSize(f, readBufferSize))
+	reader.Comma = delimiter
+	reader.ReuseRecord = true
+
+	r := &RowReader{file: f, reader: reader, row: 0}
+	if skipHeader {
+		if _, err = reader.Read(); err != nil {
+			return nil, stderrors.Join(errors.Wrap(err, "error reading header"), r.Close())
+		}
+		r.row++
+	}
+	return r, nil
 }
 
-func (bp *BatchProcessor) Reader() (batchChan chan Batch, errorChan chan error) {
-	batchChan = make(chan Batch, 2)
-	errorChan = make(chan error, 2)
-	go func() {
-		defer close(batchChan)
-
-		file, err := os.Open(bp.inputFile)
-		if err != nil {
-			errorChan <- errors.Wrap(err, "error opening file "+bp.inputFile)
-			return
+// Next returns the next record, or io.EOF once the file is exhausted. io.EOF is returned
+// unwrapped so the caller can end the loop on it without unwrapping a read failure by mistake.
+func (r *RowReader) Next() ([]string, error) {
+	record, err := r.reader.Read()
+	if err != nil {
+		if stderrors.Is(err, io.EOF) {
+			return nil, io.EOF
 		}
-		defer func(file *os.File) {
-			err := file.Close()
-			if err != nil {
-				errorChan <- errors.Wrap(err, "error closing file "+bp.inputFile)
-				return
-			}
-		}(file)
+		return nil, errors.Wrap(err, "error reading row "+strconv.Itoa(r.row+1))
+	}
+	r.row++
+	return record, nil
+}
 
-		reader := csv.NewReader(file)
-		reader.Comma = bp.delimiter
-		if bp.skipHeader {
-			if _, err := reader.Read(); err != nil {
-				errorChan <- errors.Wrap(err, "error reading header")
-				return
-			}
-		}
-		batchID := 0
-		for {
-			batch := make([][]string, 0, bp.batchSize)
-			startRow := batchID*bp.batchSize + 1
-			for i := 0; i < bp.batchSize; i++ {
-				record, err := reader.Read()
-				if err != nil {
-					if err == io.EOF {
-						break
-					}
-					errorChan <- errors.Wrap(err, "error reading row "+strconv.Itoa(startRow+i))
-					return
-				}
-				batch = append(batch, record)
-			}
-			if len(batch) == 0 {
-				break
-			}
-			batchChan <- Batch{
-				Rows:  batch,
-				Start: startRow,
-				Id:    batchID,
-			}
-
-			batchID++
-		}
-	}()
-	return batchChan, errorChan
+func (r *RowReader) Close() error {
+	return r.file.Close()
 }

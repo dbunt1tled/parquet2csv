@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dbunt1tled/parquet2csv/internal/file"
@@ -17,6 +17,11 @@ import (
 	"github.com/xitongsys/parquet-go/parquet"
 	"github.com/xitongsys/parquet-go/source"
 	"github.com/xitongsys/parquet-go/writer"
+)
+
+const (
+	kilobyte = 1024
+	megabyte = 1024 * kilobyte
 )
 
 var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init command
@@ -31,8 +36,9 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 			compression        int
 			delimiter          string
 			flush              int
+			rowGroupSize       int
+			pageSize           int
 			verbose            bool
-			header             []string
 			structType         interface{}
 			processor          schema.Processor
 			fw                 source.ParquetFile
@@ -78,6 +84,20 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if flush < 1 {
 			return fmt.Errorf("flush must be at least 1, got %d", flush)
 		}
+		rowGroupSize, err = cmd.Flags().GetInt("row-group-size")
+		if err != nil {
+			return errors.Wrap(err, "error read row-group-size")
+		}
+		if rowGroupSize < 1 {
+			return fmt.Errorf("row-group-size must be at least 1 MB, got %d", rowGroupSize)
+		}
+		pageSize, err = cmd.Flags().GetInt("page-size")
+		if err != nil {
+			return errors.Wrap(err, "error read page-size")
+		}
+		if pageSize < 1 {
+			return fmt.Errorf("page-size must be at least 1 KB, got %d", pageSize)
+		}
 		delimiter, err = cmd.Flags().GetString("delimiter")
 		if err != nil {
 			return errors.Wrap(err, "error read delimiter")
@@ -94,72 +114,64 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 			return err
 		}
 
+		reader, err := file.NewRowReader(input, []rune(delimiter)[0], false)
+		if err != nil {
+			return err
+		}
+		defer reader.Close()
+
 		fw, err = local.NewLocalFileWriter(output)
 		if err != nil {
 			return err
 		}
 		// Best effort for the error paths; the success path closes and checks the error below.
 		defer fw.Close()
-		i := 0
-		bp := file.NewBatchProcessor(input, file.FlushCount, []rune(delimiter)[0], false)
-		bCh, eCh := bp.Reader()
 
-		dataPool := &sync.Pool{
-			New: func() interface{} {
-				data := make(map[string]interface{})
-				return &data
-			},
-		}
+		rows := 0
+		for {
+			record, readErr := reader.Next()
+			if readErr != nil {
+				if errors.Is(readErr, io.EOF) {
+					break
+				}
+				return errors.Wrap(readErr, "read error")
+			}
 
-		for rows := range bCh {
-			// Abort early when the reader has already failed; a nil here would mean no error,
-			// so it must not be turned into a silent success.
-			select {
-			case err = <-eCh:
+			// The first record is the header and there is nothing to write yet, so the writer
+			// staying nil is also what marks the header as not seen.
+			if pw == nil {
+				// The reader hands back the same slice every time, so the header has to be
+				// copied before the next record overwrites it.
+				structType, processor, err = schema.ProcessDefault(slices.Clone(record))
 				if err != nil {
-					return errors.Wrap(err, "read error")
+					return errors.Wrap(err, "build schema")
 				}
-			default:
+				pw, err = writer.NewParquetWriter(fw, structType, 2) //nolint:mnd // maybe the number of threads
+				if err != nil {
+					return errors.Wrap(err, "can't create parquet writer")
+				}
+				pw.RowGroupSize = int64(rowGroupSize) * megabyte
+				// One ColumnIndex and OffsetIndex entry is kept in memory per page until
+				// WriteStop, so the page size — not the row group size — is what decides
+				// whether peak memory grows with the length of the input.
+				pw.PageSize = int64(pageSize) * kilobyte
+				pw.CompressionType = parquet.CompressionCodec(int32(compression))
+				continue
 			}
 
-			for _, rec := range rows.Rows {
-				if i == 0 {
-					header = rec
-					structType, processor, err = schema.ProcessDefault(header)
-					if err != nil {
-						return errors.Wrap(err, "build schema")
-					}
-					pw, err = writer.NewParquetWriter(fw, structType, 2) //nolint:mnd // maybe the number of threads
-					if err != nil {
-						return errors.Wrap(err, "can't create parquet writer")
-					}
-					pw.RowGroupSize = 128 * 1024 * 1024 //nolint:mnd // 128MB
-					pw.CompressionType = parquet.CompressionCodec(int32(compression))
-					i++
-					continue
-				}
-
-				eData := processor(rec, structType, header, dataPool)
-				if err = pw.Write(eData); err != nil {
-					return errors.Wrap(err, "write error")
-				}
-
-				if i == flush {
-					if err = pw.Flush(true); err != nil {
-						return errors.Wrap(err, "write flush error")
-					}
-					i = 0
-				}
-				i++
+			if err = pw.Write(processor(record)); err != nil {
+				return errors.Wrap(err, "write error")
 			}
-		}
 
-		select {
-		case err = <-eCh:
-			if err != nil {
-				return errors.Wrap(err, "read error")
+			rows++
+			if rows%flush == 0 {
+				// Flush(false) only turns the buffered rows into pages; it closes a row group
+				// once RowGroupSize is reached and not before. Forcing a row group here instead
+				// would keep per-row-group footer metadata for every flush until WriteStop.
+				if err = pw.Flush(false); err != nil {
+					return errors.Wrap(err, "write flush error")
+				}
 			}
-		default:
 		}
 
 		if pw == nil {
@@ -173,6 +185,9 @@ var csv2parquet = &cobra.Command{ //nolint:gochecknoglobals // need for init com
 		if err = fw.Close(); err != nil {
 			return errors.Wrap(err, "close writer error")
 		}
+		if err = reader.Close(); err != nil {
+			return errors.Wrap(err, "close reader error")
+		}
 		if verbose {
 			fmt.Printf("%s\n", helper.RuntimeStatistics(startTime, input)) //nolint:forbidigo  // verbose output
 		}
@@ -185,6 +200,8 @@ func init() {
 	rootCmd.AddCommand(csv2parquet)
 	csv2parquet.Flags().IntP("compression", "c", 0, "Type of compression")
 	csv2parquet.Flags().IntP("flush", "f", file.FlushCount, "number of rows to flush")
+	csv2parquet.Flags().IntP("row-group-size", "r", 8, "Target row group size in MB") //nolint:mnd // default 8MB
+	csv2parquet.Flags().IntP("page-size", "p", 1024, "Target data page size in KB")   //nolint:mnd // default 1MB
 	csv2parquet.Flags().StringP("delimiter", "d", ",", "Delimiter for csv file")
 	csv2parquet.Flags().BoolP("verbose", "v", false, "Show debug information")
 }
